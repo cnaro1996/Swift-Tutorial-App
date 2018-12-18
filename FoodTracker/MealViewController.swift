@@ -7,22 +7,40 @@
 //
 
 import UIKit
+import os.log
 
 class MealViewController: UIViewController, UITextFieldDelegate, UIImagePickerControllerDelegate,
 UINavigationControllerDelegate {
-    //MARK: Properties
+    
+    // MARK: Properties
     @IBOutlet weak var nameTextField: UITextField!
     @IBOutlet weak var photoImageView: UIImageView!
     @IBOutlet weak var ratingControl: RatingControl!
+    @IBOutlet weak var saveButton: UIBarButtonItem!
+    
+    /*
+     This value is either passed by `MealTableViewController` in `prepare(for:sender:)`
+     or constructed as part of adding a new meal.
+     */
+    var meal: Meal?
     
     override func viewDidLoad() {
         super.viewDidLoad()
         
         // Handle the text field’s user input through delegate callbacks.
         nameTextField.delegate = self
+        
+        // Enable the Save button only if the text field has a valid Meal name.
+        updateSaveButtonState()
     }
     
-    //MARK: UITextFieldDelegate
+    // MARK: UITextFieldDelegate
+    
+    func textFieldDidBeginEditing(_ textField: UITextField) {
+        // Disable the save button while editing
+        saveButton.isEnabled = false
+    }
+    
     func textFieldShouldReturn(_ textField: UITextField) -> Bool {
         // Hide the keyboard.
         textField.resignFirstResponder()
@@ -30,10 +48,12 @@ UINavigationControllerDelegate {
     }
     
     func textFieldDidEndEditing(_ textField: UITextField) {
-        
+        updateSaveButtonState()
+        navigationItem.title = textField.text
     }
     
-    //MARK: imagePickerControllerDelegate
+    // MARK: imagePickerControllerDelegate
+    
     func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
         // Dismiss the picker if the user canceled.
         dismiss(animated: true, completion: nil)
@@ -53,7 +73,33 @@ UINavigationControllerDelegate {
         dismiss(animated: true, completion: nil)
     }
     
-    //MARK: Actions
+    // MARK: Navigation
+    
+    @IBAction func cancel(_ sender: UIBarButtonItem) {
+        dismiss(animated: true, completion: nil)
+    }
+    
+    // This method lets you configure a view controller before it's presented
+    override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
+        
+        super.prepare(for: segue, sender: sender)
+        
+        // Configure the destination view controller only when the save button is pressed.
+        guard let button = sender as? UIBarButtonItem, button === saveButton else {
+            os_log("The save button was not pressed, cancelling", log: OSLog.default, type: .debug)
+            return
+        }
+        
+        let name = nameTextField.text ?? ""
+        let photo = photoImageView.image
+        let rating = ratingControl.rating
+        
+        // Set the meal to be passed to MealTableViewController after the unwind segue
+        meal = Meal(name: name, photo: photo, rating: rating)
+    }
+    
+    // MARK: Actions
+    
     @IBAction func selectImageFromPhotoLibrary(_ sender: UITapGestureRecognizer) {
         // Hide the keyboard.
         // This code ensures that if the user taps the image view while typing in the text field, the keyboard is dismissed properly.
@@ -71,6 +117,14 @@ UINavigationControllerDelegate {
         // Implicit method call on ViewController, tells ViewController to present the view controller defined by imagePickerController
         present(imagePickerController, animated: true, completion: nil)
         
+    }
+    
+    // MARK: Private methods
+    
+    private func updateSaveButtonState() {
+        // Disable the save button if the text field is empty
+        let text = nameTextField.text ?? ""
+        saveButton.isEnabled = !text.isEmpty
     }
 }
 
